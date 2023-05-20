@@ -1,0 +1,170 @@
+---
+title: "CO and NO2 emissions prediction"
+author: "Dhiraj Kumar Reddy; Shashaank; Pallavi; Veera Sampth Kumar Reddy"
+date: "2023-04-21"
+output: html_document
+---
+
+### This R markdown is gonna predict the CO and NOX emissions of turbine using various regression methods and compare them to select the best model
+
+#### First lets import the dataset and the required libraries
+```{r}
+data<-read.csv("data.csv",header = T)
+data=data[,2:12]
+#data<-read.csv("gt_2011.csv",header = T)
+#data=data[,1:11]
+head(data)
+```
+
+#### Lets do some EDA on the data
+
+```{r}
+ncol(data) #check the number of columns(variables) in the dataset
+nrow(data) #check the number of row(variables) in the dataset
+names(data) #check the name of variables
+print("The statistical summary of the features are:")
+summary(data) #+statistics of each variable
+```
+
+#### lets see a scatter plot of features to see any relation btw features and targets
+
+```{r fig.height=8, fig.width=8}
+pairs(data, pch = 21)
+```
+
+#### Lets look into correlation of each feature wrt one another
+```{r fig.height=10, fig.width=10}
+library(corrplot) #load the package to current environment
+Corr <- cor(data) #calculate the correlation coefficient matrix of variables
+Corr
+corrplot(Corr,method = 'circle') # circle, square, ellipse, pie
+```
+
+#### Lets adjust the outliers in the data using box plot before replacing with median
+```{r}
+boxplot(data$AT,xlab="AT")
+boxplot(data$AP,xlab="AP")
+boxplot(data$AH,xlab="AH")
+boxplot(data$AFDP,xlab="AFDP")
+boxplot(data$GTEP,xlab="GTEP")
+boxplot(data$TIT,xlab="TIT")
+boxplot(data$TAT,xlab="TAT")
+boxplot(data$TEY,xlab="TEY")
+boxplot(data$CDP,xlab="CDP")
+boxplot(data$CO,xlab="CO")
+boxplot(data$NOX,xlab="NOX")
+```
+
+
+
+
+#### Lets seperate the data into training and testing
+```{r}
+y1 <- data$CO
+y2=data$NOX
+X_CO=data.frame(data[,1:9],y1)
+N = nrow(X_CO)
+testid = sample(c(1:N),round(0.2*N),replace = FALSE)
+train_CO = X_CO[-testid,]
+test_CO = X_CO[testid,]
+nrow(train_CO)
+nrow(test_CO)
+
+X_NOX=data.frame(data[,1:9],y2)
+N = nrow(X_NOX)
+testid = sample(c(1:N),round(0.2*N),replace = FALSE)
+train_NOX = X_NOX[-testid,]
+test_NOX = X_NOX[testid,]
+nrow(train_NOX)
+nrow(test_NOX)
+```
+
+#### LEts build a Random Forest model for CO emissions first
+```{r}
+library(randomForest)
+rf.CO =randomForest(y1~.,data=train_CO,importance =TRUE,na.action = na.exclude)
+rf.CO
+ImpData <- as.data.frame(importance(rf.CO))
+ImpData
+varImpPlot(rf.CO)
+```
+
+#### Lets see the predicted values of CO emissions using Test data
+```{r}
+#lets create a fnc to calculate R2 score
+R2_score <- function(actual,predicted) {
+  R2 <- 1 - (sum((actual-predicted)^2)/sum((actual-mean(actual))^2))
+  return(R2)
+}
+
+
+y_pred_CO = predict(rf.CO, newdata = test_CO)
+library(Metrics)
+sprintf("the rmse of CO emissions using thethe test data is: %.3f",rmse(test_CO$y1, y_pred_CO))
+sprintf("The R2 Score of CO emissions using the test data is: %.3f",R2_score(test_CO$y1, y_pred_CO))
+plot(test_CO$y1, y_pred_CO)
+```
+
+
+#### Lets build a Random forest for NOX emissions prediction
+```{r}
+library(randomForest)
+rf.NOX =randomForest(y2~.,data=train_NOX,importance =TRUE,na.action = na.exclude)
+rf.NOX
+ImpData <- as.data.frame(importance(rf.NOX))
+ImpData
+varImpPlot(rf.NOX)
+```
+
+#### Lets see the predicted values of NOX emissions using Test data
+```{r}
+#lets create a fnc to calculate R2 score
+y_pred_NOX = predict(rf.NOX, newdata = test_NOX)
+sprintf("the rmse of NOX emissions using the test data is: %.3f",rmse(test_NOX$y2, y_pred_NOX))
+sprintf("The R2 Score of NOX emissions using the test data is: %.3f",R2_score(test_NOX$y2, y_pred_NOX))
+plot(test_NOX$y2, y_pred_NOX)
+```
+
+### LEts build a Support vector Machine Regressor model on CO emissions
+```{r}
+## Fit SVR model and visualize using scatter plot
+
+#Install Package
+#install.packages("e1071")
+
+#Load Library
+library(e1071)
+ 
+
+#Regression with SVM
+svm_CO= svm(y1~.,data=train_CO)
+
+#Predict using SVM regression
+predYsvm_CO = predict(svm_CO, test_CO)
+
+sprintf("the rmse of CO emissions using SVM on the test data is: %.3f",rmse(test_CO$y1, predYsvm_CO))
+sprintf("The R2 Score of CO emissions using SVM on the test data is: %.3f",R2_score(test_CO$y1, predYsvm_CO))
+plot(test_CO$y1, predYsvm_CO)
+```
+
+### LEts build a Support vector Machine Regressor model on NOX emissions
+```{r}
+## Fit SVR model and visualize using scatter plot
+
+#Install Package
+#install.packages("e1071")
+
+#Load Library
+library(e1071)
+ 
+
+#Regression with SVM
+svm_NOX= svm(y2~.,data=train_NOX)
+
+#Predict using SVM regression
+predYsvm_NOX = predict(svm_NOX, test_NOX)
+
+sprintf("the rmse of NOX emissions using SVM on the test data is: %.3f",rmse(test_NOX$y2, predYsvm_NOX))
+sprintf("The R2 Score of NOX emissions using SVM on the test data is: %.3f",R2_score(test_NOX$y2, predYsvm_NOX))
+plot(test_NOX$y2, predYsvm_NOX)
+```
